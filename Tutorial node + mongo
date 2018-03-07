@@ -1,0 +1,132 @@
+- Configuração do projeto
+
+-- Criação de projeto express
+
+express -e --git apitest
+
+-- Instalar e adicionar as novas dependencias ao package.json
+
+npm install -S mongodb mongoose
+
+-- Instalar as dependencias do package.json
+
+npm install 
+
+-- Iniciar a aplicação
+
+nodemon
+
+- Configurando o banco
+
+-- Execute o comando a seguir para rodar o banco de dados na pasta /data dentro da raiz do projeto
+
+cd mongodb/bin
+./mongod --dbpath <caminho_do_/data>
+
+-- Crie o schema e adicione alguns dados no schema criado
+
+mongo
+use apitest
+db.customers.insert({"name": "customer1", "email": "cust1@email.com"})
+db.customers.insert({"name": "customer2", "email": "cust2@email.com"})
+db.customers.insert({"name": "customer3", "email": "cust3@email.com"})
+
+-- Exibindo os dados cadastrados
+
+db.customers.find().pretty()
+
+-- Criar um objeto Mongoose, fazer a conexão com  banco que está rodando local e definir o schema da coleção de clientes no banco de dados, usando o mesmo nome que já tinha usado no cadastro no bd (customers). Por fim, exportar um objeto contendo o Mongoose e o schema, para uso posterior.
+
+var mongoose = require('mongoose')
+mongoose.connect('mongodb://localhost/apitest')
+
+var customerSchema = new mongoose.Schema({
+	name: String,
+	email: String
+}, { collection: 'customers'}
+);
+
+module.exports = { Mongoose: mongoose, CustomerSchema: customerSchema}
+
+-- Criar uma rota GET que retorna um json com os customers cadastrados
+
+/* GET all customers */
+router.get('/customers', function(req, res, next) {
+	var db = require('../db');
+	var Customer = db.Mongoose.model('customers', db.CustomerSchema, 'customers');
+
+	Customer.find({}).lean().exec(function(e, docs) {
+		res.json(docs);
+		res.end();
+	});
+});
+
+-- Criar uma rota GET que retorna(pelo id) um json com um customer
+
+/* GET customer by id */
+router.get('/customer/:id', function(req, res, next) {
+	var db = require('../db');
+	var Customer = db.Mongoose.model('customers', db.CustomerSchema, 'customers');
+
+	Customer.find({_id: req.params.id }).lean().exec(function(e, docs) {
+		res.json(docs);
+		res.end();
+	});
+});
+
+-- Criar uma rota POST que cria um novo customer e o retorna em formato json
+
+/* POST a new customer */
+router.post('/customers', function(req, res, next) {
+	var db = require('../db');
+	var Customer = db.Mongoose.model('customers', db.CustomerSchema, 'customers');
+
+	var newcustomer = new Customer({name: req.body.name, email: req.body.email});
+	newcustomer.save(function(err) {
+		if (err) {
+			res.status(500).json({message: err.message});
+			res.end();
+			return
+		}
+		res.json(newcustomer);
+		res.end();
+	});
+});
+
+- Put de um cliente retornando o objeto alterado
+
+/* PUT a customer by id */
+router.put('/customer/:id', function(req, res, next) {
+	var db = require('../db');
+	var Customer = db.Mongoose.model('customers', db.CustomerSchema, 'customers');
+
+	Customer.findOneAndUpdate({_id: req.params.id}, req.body, {upsert: true}, function(err, doc) {
+		if (err) {
+			res.status(500).json({message: err.message});
+			res.end();
+			return
+		}
+		res.json(req.body);
+		res.end();
+	});
+});
+
+upsert:true, indica que se o customer não existir, ele será criado.
+
+-- Deletar um customer, retornando true caso sucesso
+
+/* DELETE ONE customer by id */
+router.delete('/customer/:id', function (req, res, next) {
+    var db = require('../db');
+    var Customer = db.Mongoose.model('customers', db.CustomerSchema, 'customers');
+    
+    Customer.find({ _id: req.params.id }).remove(function (err) {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            res.end();
+            return;
+        }
+        res.json({success: true});
+        res.end();
+    });
+});
